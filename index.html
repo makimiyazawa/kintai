@@ -295,6 +295,7 @@ body{font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;backgroun
         <select id="summaryYm" class="form-select" style="flex:1;" onchange="loadMonthlySummary()"></select>
         <button class="btn btn-primary btn-sm" onclick="exportMonthly()">📥 Excel出力</button>
       </div>
+      <button class="btn btn-secondary" style="margin-bottom:12px;" onclick="createNextMonth()">📅 翌月シートを全員分作成</button>
       <div style="overflow-x:auto;" id="monthlySummary"><div class="loading">月を選択してください</div></div>
     </div>
   </div>
@@ -794,6 +795,19 @@ async function exportMonthly() {
   if (!result.success) { showToast(result.message||'出力に失敗しました','error'); return; }
   showToast('Excel出力完了！ダウンロードしてください','success');
   window.open(result.url,'_blank');
+}
+
+// ===== 翌月シート一括作成 =====
+async function createNextMonth() {
+  // GASから翌月の年月を取得して確認ダイアログを表示
+  showToast('確認中...','success');
+  const check = await sendToGAS('getNextMonthYm', {});
+  if (!check.success) { showToast('確認に失敗しました','error'); return; }
+  if (!confirm(`${check.ym}のシートを全員分作成しますか？`)) return;
+  showToast('シート作成中...','success');
+  const result = await sendToGAS('createNextMonth', {});
+  if (!result.success) { showToast('作成に失敗しました','error'); return; }
+  showToast(result.message,'success');
 }
 
 // ===== タブ切り替え =====
