@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>勤怠管理システム</title>
+<style>
+:root {
+  --mahogany:#42313A; --chestnut:#6C2D2C; --leather:#9F4636; --olive:#6E6702;
+  --parchment:#F1DCC9; --cream:#FDF8F0; --border:#D4BCA8; --muted:#8C7B72;
+  --white:#FFFFFF; --radius:12px; --shadow:0 2px 12px rgba(66,49,58,0.08);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;background:var(--cream);color:var(--mahogany);min-height:100vh;}
+
+/* ログイン */
+.login-screen{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 24px;background:var(--parchment);}
+.login-logo{font-size:48px;margin-bottom:8px;}
+.login-title{font-size:22px;font-weight:700;color:var(--mahogany);margin-bottom:4px;}
+.login-sub{font-size:13px;color:var(--muted);margin-bottom:32px;}
+.login-card{background:var(--white);border:0.5px solid var(--border);border-radius:var(--radius);padding:28px 24px;width:100%;max-width:360px;box-shadow:var(--shadow);}
+
+/* ヘッダー */
+.header{background:var(--mahogany);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+.header-title{font-size:16px;font-weight:700;color:var(--parchment);}
+.header-right{display:flex;align-items:center;gap:12px;}
+.header-user{font-size:12px;color:var(--border);}
+.logout-btn{background:none;border:1px solid var(--border);border-radius:6px;color:var(--border);font-size:12px;padding:4px 10px;cursor:pointer;}
+
+/* タブ */
+.tab-nav{display:flex;background:var(--white);border-bottom:2px solid var(--parchment);overflow-x:auto;}
+.tab-btn{flex:1;padding:14px 8px;border:none;background:none;color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;border-bottom:3px solid transparent;transition:all 0.2s;}
+.tab-btn.active{color:var(--mahogany);border-bottom-color:var(--mahogany);}
+
+/* ページ */
+.page{display:none;padding:16px;padding-bottom:40px;}
+.page.active{display:block;}
+
+/* カード */
+.card{background:var(--white);border:0.5px solid var(--border);border-radius:var(--radius);padding:18px;margin-bottom:14px;box-shadow:var(--shadow);}
+.card-label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px;}
+
+/* 時計 */
+.clock-wrap{text-align:center;padding:8px 0 16px;}
+.clock-time{font-size:48px;font-weight:300;color:var(--mahogany);letter-spacing:-1px;font-variant-numeric:tabular-nums;}
+.clock-date{font-size:13px;color:var(--muted);margin-top:4px;}
+
+/* GPS */
+.gps-badge{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:8px;font-size:13px;font-weight:500;margin-top:4px;}
+.gps-badge.checking{background:#FFF8E8;border:0.5px solid #D4A843;color:#8B6914;}
+.gps-badge.ok{background:#F0F7E8;border:0.5px solid var(--olive);color:var(--olive);}
+.gps-badge.ng{background:#FBF0EE;border:0.5px solid var(--leather);color:var(--leather);}
+.gps-dot{width:8px;height:8px;border-radius:50%;background:currentColor;flex-shrink:0;}
+.gps-dot.pulse{animation:pulse 1.5s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+
+/* アラート */
+.alert-missing{background:#FBF0EE;border:1px solid var(--leather);border-radius:8px;padding:12px 14px;font-size:13px;font-weight:600;color:var(--leather);margin-top:12px;display:none;}
+.alert-box{background:#FFF8E8;border:0.5px solid #D4A843;border-radius:8px;padding:10px 14px;font-size:12px;color:#8B6914;font-weight:600;margin-top:10px;}
+
+/* 打刻ボタン */
+.stamp-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px;}
+.stamp-btn{padding:20px 12px;border:none;border-radius:var(--radius);font-size:16px;font-weight:700;cursor:pointer;transition:transform 0.15s,opacity 0.15s;display:flex;flex-direction:column;align-items:center;gap:8px;}
+.stamp-btn:active{transform:scale(0.96);opacity:0.9;}
+.stamp-btn:disabled{opacity:0.35;cursor:not-allowed;transform:none;}
+.stamp-btn .btn-icon{font-size:28px;}
+.btn-checkin{background:var(--mahogany);color:var(--parchment);}
+.btn-checkout{background:var(--leather);color:var(--parchment);}
+
+/* 申請ボタン */
+.req-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.req-btn{padding:18px 10px;border:none;border-radius:var(--radius);font-size:15px;font-weight:700;cursor:pointer;transition:transform 0.15s;display:flex;flex-direction:column;align-items:center;gap:6px;}
+.req-btn:active{transform:scale(0.96);}
+.btn-paid{background:var(--chestnut);color:var(--parchment);}
+.btn-remote{background:var(--olive);color:var(--parchment);}
+.req-btn .btn-icon{font-size:24px;}
+
+/* フォーム */
+.form-group{margin-bottom:14px;}
+.form-label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px;}
+.form-input,.form-select,.form-textarea{width:100%;padding:11px 14px;background:var(--cream);border:1px solid var(--border);border-radius:8px;color:var(--mahogany);font-size:14px;font-family:inherit;transition:border-color 0.2s;}
+.form-input:focus,.form-select:focus,.form-textarea:focus{outline:none;border-color:var(--mahogany);}
+.form-textarea{resize:vertical;min-height:80px;}
+
+/* ボタン */
+.btn{width:100%;padding:14px;border:none;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;transition:all 0.2s;}
+.btn:active{transform:scale(0.97);}
+.btn-primary{background:var(--mahogany);color:var(--parchment);}
+.btn-secondary{background:var(--cream);color:var(--mahogany);border:1px solid var(--border);}
+.btn-sm{padding:6px 14px;font-size:12px;border-radius:6px;width:auto;}
+
+/* バッジ */
+.badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;}
+.badge-pending{background:#FFF8E8;color:#8B6914;border:0.5px solid #D4A843;}
+.badge-approved{background:#F0F7E8;color:var(--olive);border:0.5px solid var(--olive);}
+.badge-rejected{background:#FBF0EE;color:var(--leather);border:0.5px solid var(--leather);}
+
+/* リスト */
+.list-item{padding:12px 0;border-bottom:0.5px solid var(--parchment);}
+.list-item:last-child{border-bottom:none;}
+.list-row{display:flex;justify-content:space-between;align-items:center;}
+.list-title{font-size:14px;font-weight:600;color:var(--mahogany);}
+.list-sub{font-size:12px;color:var(--muted);margin-top:3px;}
+
+/* テーブル */
+.data-table{width:100%;border-collapse:collapse;font-size:13px;}
+.data-table th{text-align:left;padding:8px 6px;color:var(--muted);font-size:11px;font-weight:700;border-bottom:1px solid var(--parchment);letter-spacing:0.04em;white-space:nowrap;}
+.data-table td{padding:10px 6px;border-bottom:0.5px solid var(--parchment);color:var(--mahogany);vertical-align:middle;}
+.data-table tr:last-child td{border-bottom:none;}
+
+/* 有給サマリ */
+.leave-summary{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;}
+.leave-box{background:var(--cream);border:0.5px solid var(--border);border-radius:8px;padding:12px;text-align:center;}
+.leave-num{font-size:24px;font-weight:700;color:var(--mahogany);}
+.leave-lbl{font-size:11px;color:var(--muted);margin-top:2px;}
+
+/* 管理者バナー */
+.admin-banner{background:var(--mahogany);color:var(--parchment);border-radius:8px;padding:10px 14px;font-size:12px;font-weight:700;text-align:center;margin-bottom:14px;}
+
+/* GPS解除ボタン */
+.override-btn{padding:4px 10px;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;}
+.btn-override-on{background:#FFF8E8;color:#8B6914;border:1px solid #D4A843;}
+.btn-override-off{background:var(--mahogany);color:var(--parchment);}
+
+/* 承認ボタン */
+.approve-btn{padding:5px 12px;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;margin-right:4px;}
+.btn-approve{background:#F0F7E8;color:var(--olive);border:1px solid var(--olive);}
+.btn-reject{background:#FBF0EE;color:var(--leather);border:1px solid var(--leather);}
+
+/* 打刻漏れバッジ */
+.missing-badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;background:#FBF0EE;color:var(--leather);border:0.5px solid var(--leather);margin-left:4px;}
+
+/* トースト */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--mahogany);color:var(--parchment);border-radius:10px;padding:12px 20px;font-size:13px;font-weight:600;opacity:0;transition:all 0.3s;z-index:9999;white-space:nowrap;pointer-events:none;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast.error{background:var(--leather);}
+
+/* ローディング */
+.loading{text-align:center;padding:24px;color:var(--muted);font-size:13px;}
+
+/* モーダル */
+.modal-overlay{position:fixed;inset:0;background:rgba(66,49,58,0.5);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;}
+.modal-overlay.hidden{display:none;}
+.modal{background:var(--white);border-radius:var(--radius);padding:24px;width:100%;max-width:400px;box-shadow:0 8px 32px rgba(66,49,58,0.2);max-height:90vh;overflow-y:auto;}
+.modal-title{font-size:16px;font-weight:700;color:var(--mahogany);margin-bottom:16px;}
+.modal-actions{display:flex;gap:10px;margin-top:20px;}
+.modal-actions .btn{flex:1;}
+
+/* 月次サマリ */
+.summary-table{width:100%;border-collapse:collapse;font-size:12px;}
+.summary-table th{padding:8px 6px;background:var(--parchment);color:var(--mahogany);font-weight:700;font-size:11px;text-align:center;border:0.5px solid var(--border);white-space:nowrap;}
+.summary-table td{padding:8px 6px;border:0.5px solid var(--border);text-align:center;color:var(--mahogany);}
+.summary-table input{width:80px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;font-size:12px;text-align:right;background:var(--cream);}
+</style>
+</head>
+<body>
+
+<!-- ログイン -->
+<div id="loginScreen">
+  <div class="login-screen">
+    <div class="login-logo">🕐</div>
+    <div class="login-title">勤怠管理</div>
+    <div class="login-sub">MiRiiMeRii 出退勤システム</div>
+    <div class="login-card">
+      <div class="form-group">
+        <label class="form-label">従業員ID</label>
+        <input type="text" id="loginId" class="form-input" placeholder="例: EMP001"
+          autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
+      </div>
+      <div class="form-group">
+        <label class="form-label">パスワード</label>
+        <input type="password" id="loginPass" class="form-input" placeholder="パスワードを入力"
+          autocomplete="new-password">
+      </div>
+      <button class="btn btn-primary" onclick="doLogin()">ログイン</button>
+    </div>
+  </div>
+</div>
+
+<!-- メイン -->
+<div id="mainApp" style="display:none;">
+  <div class="header">
+    <div class="header-title">⏱ 勤怠管理</div>
+    <div class="header-right">
+      <div class="header-user" id="headerUser"></div>
+      <button class="logout-btn" onclick="doLogout()">ログアウト</button>
+    </div>
+  </div>
+
+  <div class="tab-nav">
+    <button class="tab-btn active" onclick="switchTab('stamp')"   id="tab-stamp">🕐 打刻</button>
+    <button class="tab-btn"        onclick="switchTab('request')" id="tab-request">📝 申請</button>
+    <button class="tab-btn"        onclick="switchTab('history')" id="tab-history">📋 履歴</button>
+    <button class="tab-btn"        onclick="switchTab('admin')"   id="tab-admin" style="display:none;">⚙️ 管理</button>
+  </div>
+
+  <!-- 打刻 -->
+  <div id="page-stamp" class="page active">
+    <div class="card">
+      <div class="clock-wrap">
+        <div class="clock-time" id="clockTime">--:--:--</div>
+        <div class="clock-date" id="clockDate"></div>
+      </div>
+      <div id="gpsBadge" class="gps-badge checking">
+        <div class="gps-dot pulse"></div><span>位置情報を確認中...</span>
+      </div>
+      <div class="alert-missing" id="alertMissing">
+        ⚠️ 打刻漏れがあります。管理者へご連絡ください。
+      </div>
+      <div class="stamp-grid">
+        <button class="stamp-btn btn-checkin"  id="btnCheckin"  onclick="stamp('出勤')" disabled>
+          <span class="btn-icon">✅</span>出勤
+        </button>
+        <button class="stamp-btn btn-checkout" id="btnCheckout" onclick="stamp('退勤')" disabled>
+          <span class="btn-icon">🚪</span>退勤
+        </button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-label">本日の打刻</div>
+      <div id="todayLog"><div class="loading">読み込み中...</div></div>
+    </div>
+  </div>
+
+  <!-- 申請 -->
+  <div id="page-request" class="page">
+    <div class="card">
+      <div class="req-grid" id="reqButtons">
+        <button class="req-btn btn-paid" onclick="openModal('有給')">
+          <span class="btn-icon">📅</span>有給申請
+        </button>
+        <button class="req-btn btn-remote" onclick="openModal('リモート')" id="btnRemote">
+          <span class="btn-icon">🏠</span>リモート申請
+        </button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-label">申請履歴</div>
+      <div id="myRequests"><div class="loading">読み込み中...</div></div>
+    </div>
+  </div>
+
+  <!-- 履歴 -->
+  <div id="page-history" class="page">
+    <div class="card" id="leaveCard" style="display:none;">
+      <div class="card-label">有給残日数</div>
+      <div class="leave-summary" id="leaveSummary"></div>
+      <div id="leaveAlert"></div>
+    </div>
+    <div class="card">
+      <div class="card-label">打刻履歴（直近30件）</div>
+      <div style="overflow-x:auto;" id="historyList"><div class="loading">読み込み中...</div></div>
+    </div>
+  </div>
+
+  <!-- 管理者 -->
+  <div id="page-admin" class="page">
+    <div class="admin-banner">🔐 管理者モード</div>
+
+    <!-- 承認待ち -->
+    <div class="card">
+      <div class="card-label">承認待ちの申請</div>
+      <div id="pendingRequests"><div class="loading">読み込み中...</div></div>
+    </div>
+
+    <!-- 打刻状況 -->
+    <div class="card">
+      <div class="card-label">本日の打刻状況</div>
+      <div style="overflow-x:auto;">
+        <table class="data-table">
+          <thead><tr>
+            <th>従業員</th><th>区分</th><th>出勤</th><th>退勤</th><th>状態</th><th>GPS</th>
+          </tr></thead>
+          <tbody id="adminTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 打刻漏れ修正 -->
+    <div class="card">
+      <div class="card-label">打刻漏れ修正</div>
+      <div id="missingList"><div class="loading">読み込み中...</div></div>
+    </div>
+
+    <!-- 申請履歴 -->
+    <div class="card">
+      <div class="card-label">申請履歴（全員）</div>
+      <div id="allRequests"><div class="loading">読み込み中...</div></div>
+    </div>
+
+    <!-- 月次サマリ -->
+    <div class="card">
+      <div class="card-label">月次サマリ</div>
+      <div style="display:flex;gap:10px;margin-bottom:12px;align-items:center;">
+        <select id="summaryYm" class="form-select" style="flex:1;" onchange="loadMonthlySummary()"></select>
+        <button class="btn btn-primary btn-sm" onclick="exportMonthly()">📥 Excel出力</button>
+      </div>
+      <div style="overflow-x:auto;" id="monthlySummary"><div class="loading">月を選択してください</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- 申請モーダル -->
+<div class="modal-overlay hidden" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-title" id="modalTitle">有給申請</div>
+    <div class="form-group">
+      <label class="form-label">開始日</label>
+      <input type="date" id="reqFrom" class="form-input">
+    </div>
+    <div class="form-group">
+      <label class="form-label">終了日</label>
+      <input type="date" id="reqTo" class="form-input">
+    </div>
+    <div class="form-group">
+      <label class="form-label">備考（任意）</label>
+      <textarea id="reqNote" class="form-textarea" placeholder="理由や補足があれば入力してください"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
+      <button class="btn btn-primary"   onclick="submitRequest()">申請する</button>
+    </div>
+  </div>
+</div>
+
+<!-- 打刻修正モーダル -->
+<div class="modal-overlay hidden" id="fixModal">
+  <div class="modal">
+    <div class="modal-title">打刻修正</div>
+    <div class="form-group">
+      <label class="form-label">従業員</label>
+      <input type="text" id="fixUserName" class="form-input" readonly>
+    </div>
+    <div class="form-group">
+      <label class="form-label">日付</label>
+      <input type="date" id="fixDate" class="form-input">
+    </div>
+    <div class="form-group">
+      <label class="form-label">出勤時刻</label>
+      <input type="time" id="fixCheckIn" class="form-input">
+    </div>
+    <div class="form-group">
+      <label class="form-label">退勤時刻</label>
+      <input type="time" id="fixCheckOut" class="form-input">
+    </div>
+    <input type="hidden" id="fixUserId">
+    <input type="hidden" id="fixYm">
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeFixModal()">キャンセル</button>
+      <button class="btn btn-primary"   onclick="submitFix()">修正する</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const GAS_URL = 'https://script.google.com/macros/s/AKfycby9B9TNdpZxHcZJkGE3DU_OgNdUue4c9ilAAUsblpbRL4uqkdMf_NYGBAeIkTitXOY-0Q/exec';
+
+async function sendToGAS(action, data={}) {
+  try {
+    const res = await fetch(GAS_URL, { method:'POST', body:JSON.stringify({action,...data}) });
+    return await res.json();
+  } catch(err) { return {success:false, message:'通信エラーが発生しました'}; }
+}
+
+let currentUser=null, gpsOk=false, userLat=null, userLng=null;
+let currentReqType='有給', logsCache=null, remoteApproved=false, gpsOverride=false;
+
+// ===== ログイン =====
+async function doLogin() {
+  const id   = document.getElementById('loginId').value.trim().toUpperCase();
+  const pass = document.getElementById('loginPass').value;
+  if (!id||!pass) { showToast('IDとパスワードを入力してください','error'); return; }
+  showToast('ログイン中...','success');
+  const result = await sendToGAS('login',{userId:id,password:pass});
+  if (!result.success) { showToast(result.message||'IDまたはパスワードが違います','error'); return; }
+
+  currentUser = result.user;
+  document.getElementById('loginId').value  = '';
+  document.getElementById('loginPass').value = '';
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('mainApp').style.display     = 'block';
+  document.getElementById('headerUser').textContent    = currentUser.name;
+
+  if (currentUser.role==='管理者') {
+    document.getElementById('tab-stamp').style.display   = 'none';
+    document.getElementById('tab-request').style.display = 'none';
+    document.getElementById('tab-history').style.display = 'none';
+    document.getElementById('tab-admin').style.display   = '';
+    // 先にページを切り替えてからデータ読み込み
+    document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.getElementById('page-admin').classList.add('active');
+    document.getElementById('tab-admin').classList.add('active');
+    startClock();
+    initSummarySelect();
+    renderAdmin(); // awaitなしで非同期読み込み
+  } else {
+    if (currentUser.role==='パート') document.getElementById('btnRemote').style.display='none';
+    startClock();
+    await loadLogs();
+    renderTodayLog();
+    checkGPS(); // loadLogs完了後にGPS確認（解除状態を反映するため）
+    renderHistory();
+    renderRequests();
+  }
+}
+
+function doLogout() {
+  currentUser=null; gpsOk=false; logsCache=null;
+  document.getElementById('mainApp').style.display    = 'none';
+  document.getElementById('loginScreen').style.display = '';
+  document.getElementById('tab-stamp').style.display   = '';
+  document.getElementById('tab-request').style.display = '';
+  document.getElementById('tab-history').style.display = '';
+  document.getElementById('tab-admin').style.display   = 'none';
+  document.getElementById('btnRemote').style.display   = '';
+  switchTab('stamp');
+}
+
+// ===== 時計 =====
+function startClock() {
+  const days=['日','月','火','水','木','金','土'];
+  function tick() {
+    const now=new Date();
+    document.getElementById('clockTime').textContent=now.toTimeString().slice(0,8);
+    document.getElementById('clockDate').textContent=`${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日（${days[now.getDay()]}）`;
+  }
+  tick(); setInterval(tick,1000);
+}
+
+// ===== GPS =====
+function checkGPS() {
+  const badge = document.getElementById('gpsBadge');
+
+  // currentUserがない場合は何もしない
+  if (!currentUser) return;
+
+  // GPS解除中なら位置情報取得前に判定
+  if (gpsOverride) {
+    gpsOk=true;
+    setGpsBadgeOk('GPS解除中（制限なし）');
+    enableStampButtons();
+    return;
+  }
+
+  if (!navigator.geolocation) {
+    badge.className='gps-badge ng';
+    badge.innerHTML='<div class="gps-dot"></div><span>位置情報が使えません</span>';
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(pos=>{
+    userLat=pos.coords.latitude; userLng=pos.coords.longitude;
+    const locations = (currentUser && currentUser.locations) ? currentUser.locations : [];
+    let minDist=Infinity, inRange=false;
+
+    // GPS解除中なら無条件でOK（位置情報取得前にチェック）
+    if (gpsOverride) {
+      gpsOk=true;
+      setGpsBadgeOk('GPS解除中（制限なし）');
+      enableStampButtons();
+      return;
+    }
+
+    // リモート承認済みの場合は自宅拠点も有効
+    locations.forEach((loc,idx)=>{
+      if (!loc.lat||!loc.radius) return;
+      if (idx===1 && !remoteApproved) return; // 拠点2はリモート承認時のみ
+      const d=getDistance(userLat,userLng,loc.lat,loc.lng);
+      if (d<minDist) minDist=d;
+      if (d<=loc.radius) inRange=true;
+    });
+
+    gpsOk=inRange;
+    if (gpsOk) { setGpsBadgeOk(`打刻可能エリア内（約${Math.round(minDist)}m）`); enableStampButtons(); }
+    else {
+      badge.className='gps-badge ng';
+      badge.innerHTML=`<div class="gps-dot"></div><span>打刻エリア外（最寄り拠点まで約${Math.round(minDist)}m）</span>`;
+    }
+  },()=>{
+    badge.className='gps-badge ng';
+    badge.innerHTML='<div class="gps-dot"></div><span>位置情報の取得に失敗しました</span>';
+  },{enableHighAccuracy:true,timeout:10000});
+}
+
+function setGpsBadgeOk(msg) {
+  const badge=document.getElementById('gpsBadge');
+  badge.className='gps-badge ok';
+  badge.innerHTML=`<div class="gps-dot"></div><span>${msg}</span>`;
+}
+function enableStampButtons() {
+  document.getElementById('btnCheckin').disabled=false;
+  document.getElementById('btnCheckout').disabled=false;
+}
+function getDistance(lat1,lng1,lat2,lng2) {
+  const R=6371000,dLat=(lat2-lat1)*Math.PI/180,dLng=(lng2-lng1)*Math.PI/180;
+  const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+// ===== 打刻 =====
+async function stamp(type) {
+  if (!gpsOk) { showToast('打刻可能エリア外です','error'); return; }
+  document.getElementById('btnCheckin').disabled=true;
+  document.getElementById('btnCheckout').disabled=true;
+  showToast('打刻中...','success');
+
+  const now=new Date();
+  const timeStr=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+
+  // ローカルで即時表示
+  if (!logsCache) logsCache={stamps:[],requests:[],leaveInfo:null};
+  const today=`${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')}`;
+  const days=['日','月','火','水','木','金','土'];
+  let todayStamp=logsCache.stamps.find(s=>String(s.date)===today);
+  if (!todayStamp) {
+    todayStamp={date:today,day:days[now.getDay()],checkIn:'',checkOut:'',workHours:'',overHours:'',paidLeave:'',note:''};
+    logsCache.stamps.unshift(todayStamp);
+  }
+  if (type==='出勤') todayStamp.checkIn=timeStr;
+  else todayStamp.checkOut=timeStr;
+  renderTodayLog();
+  showToast(`${type}打刻しました`,'success');
+  if (gpsOk) enableStampButtons();
+
+  // バックグラウンドでGASに記録・データ更新
+  const result=await sendToGAS('stamp',{userId:currentUser.id,userName:currentUser.name,type,lat:userLat,lng:userLng});
+  if (!result.success) { showToast('打刻の記録に失敗しました','error'); return; }
+  await loadLogs();
+  renderTodayLog();
+  renderHistory();
+}
+
+// ===== ログ取得 =====
+async function loadLogs() {
+  const result=await sendToGAS('getLogs',{userId:currentUser.id,userName:currentUser.name});
+  if (result.success) {
+    logsCache=result;
+    remoteApproved=result.remoteApproved||false;
+    gpsOverride=result.gpsOverride||false;
+    document.getElementById('alertMissing').style.display=result.hasMissingStamp?'block':'none';
+  }
+}
+
+function renderTodayLog() {
+  const el=document.getElementById('todayLog');
+  if (!logsCache||!logsCache.stamps.length) { el.innerHTML='<div class="loading">まだ打刻がありません</div>'; return; }
+  const now=new Date();
+  const today=`${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')}`;
+  const s=logsCache.stamps.find(s=>String(s.date).slice(0,10).replaceAll('-','/')===today);
+  if (!s) { el.innerHTML='<div class="loading">まだ打刻がありません</div>'; return; }
+  el.innerHTML=`<div style="display:flex;gap:16px;justify-content:center;padding:8px 0;">
+    <div style="text-align:center;"><div style="font-size:11px;color:var(--muted);margin-bottom:4px;">出勤</div>
+      <div style="font-size:22px;font-weight:700;color:var(--mahogany);">${s.checkIn||'--:--'}</div></div>
+    <div style="font-size:24px;color:var(--border);padding-top:16px;">→</div>
+    <div style="text-align:center;"><div style="font-size:11px;color:var(--muted);margin-bottom:4px;">退勤</div>
+      <div style="font-size:22px;font-weight:700;color:var(--leather);">${s.checkOut||'--:--'}</div></div>
+    ${s.workHours?`<div style="text-align:center;"><div style="font-size:11px;color:var(--muted);margin-bottom:4px;">勤務時間</div>
+      <div style="font-size:16px;font-weight:700;color:var(--olive);padding-top:3px;">${s.workHours}</div></div>`:''}
+  </div>`;
+}
+
+function renderHistory() {
+  const el=document.getElementById('historyList');
+  if (!logsCache||!logsCache.stamps.length) { el.innerHTML='<div class="loading">履歴がありません</div>'; return; }
+  el.innerHTML=`<table class="data-table"><thead><tr>
+    <th>日付</th><th>曜</th><th>出勤</th><th>退勤</th><th>勤務</th><th>残業</th><th>有給</th>
+  </tr></thead><tbody>${logsCache.stamps.map(s=>`<tr>
+    <td>${s.date}</td><td>${s.day||''}</td><td>${s.checkIn||'-'}</td><td>${s.checkOut||'-'}</td>
+    <td>${s.workHours||'-'}</td><td>${s.overHours||'-'}</td>
+    <td style="color:var(--chestnut);font-weight:700;">${s.paidLeave||''}</td>
+  </tr>`).join('')}</tbody></table>`;
+
+  if (logsCache.leaveInfo) {
+    const li=logsCache.leaveInfo;
+    document.getElementById('leaveCard').style.display='';
+    document.getElementById('leaveSummary').innerHTML=`
+      <div class="leave-box"><div class="leave-num">${li.total}</div><div class="leave-lbl">付与日数</div></div>
+      <div class="leave-box"><div class="leave-num">${li.used}</div><div class="leave-lbl">使用日数</div></div>
+      <div class="leave-box"><div class="leave-num" style="color:${li.remaining<3?'var(--leather)':'var(--olive)'};">${li.remaining}</div><div class="leave-lbl">残日数</div></div>`;
+    document.getElementById('leaveAlert').innerHTML=li.alert?`<div class="alert-box">${li.alert}</div>`:'';
+  }
+}
+
+function renderRequests() {
+  const el=document.getElementById('myRequests');
+  if (!logsCache||!logsCache.requests.length) { el.innerHTML='<div class="loading">申請履歴がありません</div>'; return; }
+  const sm={審査中:'pending',承認済み:'approved',否認:'rejected'};
+  el.innerHTML=logsCache.requests.map(r=>`<div class="list-item">
+    <div class="list-row"><div class="list-title">${r.reqType}申請</div>
+      <span class="badge badge-${sm[r.status]||'pending'}">${r.status}</span></div>
+    <div class="list-sub">${r.from} 〜 ${r.to}${r.note?' / '+r.note:''}</div>
+  </div>`).join('');
+}
+
+// ===== 申請モーダル =====
+function openModal(type) {
+  currentReqType=type;
+  document.getElementById('modalTitle').textContent=`${type}申請`;
+  document.getElementById('reqFrom').value=new Date().toISOString().slice(0,10);
+  document.getElementById('reqTo').value=new Date().toISOString().slice(0,10);
+  document.getElementById('reqNote').value='';
+  document.getElementById('modalOverlay').classList.remove('hidden');
+}
+function closeModal() { document.getElementById('modalOverlay').classList.add('hidden'); }
+
+async function submitRequest() {
+  const from=document.getElementById('reqFrom').value;
+  const to=document.getElementById('reqTo').value;
+  const note=document.getElementById('reqNote').value;
+  if (!from||!to) { showToast('日付を入力してください','error'); return; }
+  if (from>to)    { showToast('終了日は開始日以降にしてください','error'); return; }
+  closeModal();
+  showToast('申請中...','success');
+  const result=await sendToGAS('request',{userId:currentUser.id,userName:currentUser.name,reqType:currentReqType,from,to,note});
+  if (!result.success) { showToast('申請に失敗しました','error'); return; }
+  showToast('申請しました。管理者に通知されます','success');
+  await loadLogs(); renderRequests();
+}
+
+// ===== 管理者ページ =====
+async function renderAdmin() {
+  const [reqResult,empResult]=await Promise.all([
+    sendToGAS('getAllRequests',{}),
+    sendToGAS('getEmployees',{})
+  ]);
+
+  if (reqResult.success) {
+    const all=reqResult.requests||[];
+    const pending=all.filter(r=>r.status==='審査中');
+    const history=all.filter(r=>r.status!=='審査中');
+    const sm={審査中:'pending',承認済み:'approved',否認:'rejected'};
+
+    document.getElementById('pendingRequests').innerHTML=pending.length
+      ? pending.map(r=>`<div class="list-item">
+          <div class="list-row"><div class="list-title">${r.userName}（${r.reqType}申請）</div></div>
+          <div class="list-sub">${r.from} 〜 ${r.to}${r.note?' / '+r.note:''}</div>
+          <div style="margin-top:8px;">
+            <button class="approve-btn btn-approve" onclick="approveReq('${r.reqId}',true)">✅ 承認</button>
+            <button class="approve-btn btn-reject"  onclick="approveReq('${r.reqId}',false)">❌ 否認</button>
+          </div></div>`).join('')
+      : '<div class="loading">承認待ちの申請はありません</div>';
+
+    document.getElementById('allRequests').innerHTML=history.length
+      ? history.map(r=>`<div class="list-item">
+          <div class="list-row"><div class="list-title">${r.userName}（${r.reqType}申請）</div>
+            <span class="badge badge-${sm[r.status]||'pending'}">${r.status}</span></div>
+          <div class="list-sub">${r.from} 〜 ${r.to}${r.note?' / '+r.note:''}</div>
+        </div>`).join('')
+      : '<div class="loading">履歴がありません</div>';
+  }
+
+  if (empResult.success) {
+    const emps=empResult.employees||[];
+    const rl={'正社員':'社員','パート':'パート'};
+    const missing=emps.filter(e=>e.hasMissing);
+
+    document.getElementById('adminTableBody').innerHTML=emps.map(e=>{
+      const status=!e.checkIn?'未出勤':!e.checkOut?`<span style="color:var(--olive);font-weight:700;">勤務中</span>`:'退勤済';
+      const overrideBtn=e.gpsOverride
+        ? `<button class="override-btn btn-override-on" onclick="toggleGps('${e.id}','${e.name}',false)">✅解除中 戻す</button>`
+        : `<button class="override-btn btn-override-off" onclick="toggleGps('${e.id}','${e.name}',true)">🔓解除</button>`;
+      const missingBadge=e.hasMissing?'<span class="missing-badge">打刻漏れ</span>':'';
+      return `<tr>
+        <td>${e.name}${missingBadge}</td>
+        <td><span style="font-size:11px;color:var(--muted);">${rl[e.role]||e.role}</span></td>
+        <td>${e.checkIn||'-'}</td><td>${e.checkOut||'-'}</td>
+        <td>${status}</td><td>${overrideBtn}</td>
+      </tr>`;
+    }).join('');
+
+    // 打刻漏れ修正セクション
+    document.getElementById('missingList').innerHTML=missing.length
+      ? missing.map(e=>`<div class="list-item">
+          <div class="list-row">
+            <div class="list-title">${e.name}</div>
+            <button class="approve-btn btn-approve" onclick="openFixModal('${e.id}','${e.name}')">✏️ 修正</button>
+          </div>
+          <div class="list-sub">打刻漏れがあります</div>
+        </div>`).join('')
+      : '<div class="loading">打刻漏れはありません</div>';
+  }
+}
+
+async function approveReq(reqId,approved) {
+  showToast(approved?'承認中...':'否認中...','success');
+  const result=await sendToGAS('approve',{reqId,approved});
+  if (!result.success) { showToast('処理に失敗しました','error'); return; }
+  showToast(approved?'承認しました':'否認しました','success');
+  await renderAdmin();
+}
+
+async function toggleGps(userId,userName,override) {
+  const result=await sendToGAS('gpsOverride',{userId,userName,override});
+  if (!result.success) { showToast('処理に失敗しました','error'); return; }
+  showToast(override?`${userName}のGPS制限を解除しました`:`${userName}のGPS制限を元に戻しました`,'success');
+  await renderAdmin();
+}
+
+// ===== 打刻修正モーダル =====
+function openFixModal(userId,userName) {
+  document.getElementById('fixUserId').value=userId;
+  document.getElementById('fixUserName').value=userName;
+  document.getElementById('fixDate').value=new Date().toISOString().slice(0,10);
+  document.getElementById('fixCheckIn').value='';
+  document.getElementById('fixCheckOut').value='';
+  const now=new Date();
+  document.getElementById('fixYm').value=`${now.getFullYear()}年${String(now.getMonth()+1).padStart(2,'0')}月`;
+  document.getElementById('fixModal').classList.remove('hidden');
+}
+function closeFixModal() { document.getElementById('fixModal').classList.add('hidden'); }
+
+async function submitFix() {
+  const userId=document.getElementById('fixUserId').value;
+  const userName=document.getElementById('fixUserName').value;
+  const date=document.getElementById('fixDate').value;
+  const checkIn=document.getElementById('fixCheckIn').value;
+  const checkOut=document.getElementById('fixCheckOut').value;
+  const ym=document.getElementById('fixYm').value;
+  if (!date) { showToast('日付を入力してください','error'); return; }
+  closeFixModal();
+  showToast('修正中...','success');
+  const result=await sendToGAS('fixStamp',{userId,userName,date:date.replaceAll('-','/'),checkIn,checkOut,ym});
+  if (!result.success) { showToast('修正に失敗しました','error'); return; }
+  showToast('打刻を修正しました','success');
+  await renderAdmin();
+}
+
+// ===== 月次サマリ =====
+function initSummarySelect() {
+  const sel=document.getElementById('summaryYm');
+  const now=new Date();
+  sel.innerHTML='';
+  for (let i=0;i<6;i++) {
+    const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+    const ym=`${d.getFullYear()}年${String(d.getMonth()+1).padStart(2,'0')}月`;
+    sel.innerHTML+=`<option value="${ym}">${ym}</option>`;
+  }
+  loadMonthlySummary();
+}
+
+async function loadMonthlySummary() {
+  const ym=document.getElementById('summaryYm').value;
+  document.getElementById('monthlySummary').innerHTML='<div class="loading">読み込み中...</div>';
+  const result=await sendToGAS('getMonthlySummary',{ym});
+  if (!result.success) { document.getElementById('monthlySummary').innerHTML='<div class="loading">データがありません</div>'; return; }
+
+  const rows=result.summary||[];
+  if (!rows.length) { document.getElementById('monthlySummary').innerHTML='<div class="loading">データがありません</div>'; return; }
+
+  const rl={'正社員':'社員','パート':'パート'};
+  document.getElementById('monthlySummary').innerHTML=`
+    <div style="overflow-x:auto;">
+    <table class="summary-table">
+      <thead><tr>
+        <th>名前</th><th>区分</th><th>出勤日数</th><th>総勤務</th><th>残業</th><th>有給</th>
+        <th>交通費</th><th>役職手当</th><th>その他手当</th><th>操作</th>
+      </tr></thead>
+      <tbody>${rows.map(r=>`<tr data-userid="${r.userId}" data-username="${r.userName}">
+        <td>${r.userName}</td>
+        <td>${rl[r.role]||r.role}</td>
+        <td style="text-align:center;">${r.workDays}</td>
+        <td>${r.totalWork}</td>
+        <td>${r.totalOver}</td>
+        <td style="text-align:center;">${r.paidDays}</td>
+        <td><input type="number" value="${r.transport}"  class="allow-input" data-field="transport"  style="width:70px;"></td>
+        <td><input type="number" value="${r.posAllow}"   class="allow-input" data-field="posAllow"   style="width:70px;"></td>
+        <td><input type="number" value="${r.otherAllow}" class="allow-input" data-field="otherAllow" style="width:70px;"></td>
+        <td><button class="approve-btn btn-approve" onclick="saveAllowance(this)">保存</button></td>
+      </tr>`).join('')}
+      </tbody>
+    </table></div>`;
+}
+
+async function saveAllowance(btn) {
+  const row=btn.closest('tr');
+  const userId=row.dataset.userid;
+  const userName=row.dataset.username;
+  const inputs=row.querySelectorAll('.allow-input');
+  const transport  = Number(inputs[0].value);
+  const posAllow   = Number(inputs[1].value);
+  const otherAllow = Number(inputs[2].value);
+  showToast('保存中...','success');
+  const result=await sendToGAS('updateAllowance',{userId,userName,transport,posAllow,otherAllow,note:''});
+  if (!result.success) { showToast('保存に失敗しました','error'); return; }
+  showToast('保存しました','success');
+}
+
+async function exportMonthly() {
+  const ym=document.getElementById('summaryYm').value;
+  showToast('Excel出力中...（しばらくお待ちください）','success');
+  const result=await sendToGAS('exportMonthly',{ym});
+  if (!result.success) { showToast(result.message||'出力に失敗しました','error'); return; }
+  showToast('Excel出力完了！ダウンロードしてください','success');
+  window.open(result.url,'_blank');
+}
+
+// ===== タブ切り替え =====
+function switchTab(tab) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById(`page-${tab}`).classList.add('active');
+  document.getElementById(`tab-${tab}`).classList.add('active');
+  if (tab==='stamp')   { renderTodayLog(); checkGPS(); }
+  if (tab==='history') renderHistory();
+  if (tab==='request') renderRequests();
+  if (tab==='admin')   renderAdmin();
+}
+
+// ===== トースト =====
+function showToast(msg,type='') {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className=`toast ${type} show`;
+  if (type!=='') setTimeout(()=>t.className='toast',3000);
+}
+</script>
+</body>
+</html>
