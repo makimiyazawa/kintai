@@ -33,8 +33,8 @@ body{font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;backgroun
 .emp-pass-input{width:100%;padding:14px;background:var(--cream);border:1px solid var(--border);border-radius:8px;color:var(--mahogany);font-size:24px;font-weight:700;letter-spacing:8px;text-align:center;font-family:inherit;}
 .emp-pass-input:focus{outline:none;border-color:var(--mahogany);}
 .pass-input-wrap{position:relative;}
-.pass-input-wrap .emp-pass-input{padding-right:48px;}
-.pass-toggle{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:22px;cursor:pointer;padding:4px;line-height:1;color:var(--muted);}
+.pass-input-wrap .emp-pass-input{padding-right:64px;}
+.pass-toggle{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:var(--cream);border:1px solid var(--border);border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;padding:6px 10px;line-height:1;color:var(--muted);}
 
 /* 管理者ログイン切り替えリンク */
 .admin-link-wrap{margin-top:18px;text-align:center;}
@@ -198,7 +198,7 @@ body{font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;backgroun
       <div class="pass-input-wrap">
         <input type="password" id="empPass" class="emp-pass-input" maxlength="4"
           autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" inputmode="text">
-        <button type="button" class="pass-toggle" onclick="togglePassVisibility()" id="passToggleBtn">👁</button>
+        <button type="button" class="pass-toggle" onclick="togglePassVisibility()" id="passToggleBtn">表示</button>
       </div>
       </div>
       <button class="btn btn-primary" onclick="doEmpLogin()">ログイン</button>
@@ -488,8 +488,8 @@ function toggleAdminLogin() {
 function togglePassVisibility() {
   const inp = document.getElementById('empPass');
   const btn = document.getElementById('passToggleBtn');
-  if (inp.type === 'password') { inp.type = 'text'; btn.textContent = '🙈'; }
-  else { inp.type = 'password'; btn.textContent = '👁'; }
+  if (inp.type === 'password') { inp.type = 'text'; btn.textContent = '非表示'; }
+  else { inp.type = 'password'; btn.textContent = '表示'; }
 }
 
 // ===== ログイン（管理者：ID＋パスワード） =====
