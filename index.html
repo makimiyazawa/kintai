@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -19,6 +20,22 @@ body{font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;backgroun
 .login-title{font-size:22px;font-weight:700;color:var(--mahogany);margin-bottom:4px;}
 .login-sub{font-size:13px;color:var(--muted);margin-bottom:32px;}
 .login-card{background:var(--white);border:0.5px solid var(--border);border-radius:var(--radius);padding:28px 24px;width:100%;max-width:360px;box-shadow:var(--shadow);}
+.hidden{display:none !important;}
+
+/* 従業員選択ボタン */
+.emp-select-title{font-size:13px;font-weight:700;color:var(--muted);margin-bottom:14px;text-align:center;}
+.emp-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.emp-btn{padding:18px 8px;border:none;border-radius:var(--radius);background:var(--parchment);color:var(--mahogany);font-size:15px;font-weight:700;cursor:pointer;transition:transform 0.15s,opacity 0.15s;}
+.emp-btn:active{transform:scale(0.96);opacity:0.9;}
+
+/* パスワード入力カード */
+.emp-pass-name{font-size:16px;font-weight:700;color:var(--mahogany);text-align:center;margin-bottom:16px;}
+.emp-pass-input{width:100%;padding:14px;background:var(--cream);border:1px solid var(--border);border-radius:8px;color:var(--mahogany);font-size:24px;font-weight:700;letter-spacing:8px;text-align:center;font-family:inherit;}
+.emp-pass-input:focus{outline:none;border-color:var(--mahogany);}
+
+/* 管理者ログイン切り替えリンク */
+.admin-link-wrap{margin-top:18px;text-align:center;}
+.admin-link{font-size:12px;color:var(--muted);text-decoration:underline;cursor:pointer;background:none;border:none;}
 
 /* ヘッダー */
 .header{background:var(--mahogany);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
@@ -161,10 +178,37 @@ body{font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;backgroun
     <div class="login-logo">🕐</div>
     <div class="login-title">勤怠管理</div>
     <div class="login-sub">MiRiiMeRii 出退勤システム</div>
-    <div class="login-card">
+
+    <!-- 1. 従業員名を選択する画面 -->
+    <div class="login-card" id="empSelectCard">
+      <div class="emp-select-title">あなたの名前をタップしてください</div>
+      <div id="empButtonList" class="emp-grid">
+        <div class="loading">読み込み中...</div>
+      </div>
+    </div>
+
+    <!-- 2. パスワード（4文字）入力画面 -->
+    <div class="login-card hidden" id="empPassCard">
+      <div class="emp-pass-name" id="empPassName"></div>
       <div class="form-group">
-        <label class="form-label">従業員ID</label>
-        <input type="text" id="loginId" class="form-input" placeholder="例: EMP001"
+        <label class="form-label">パスワード（英字1文字＋数字3桁）</label>
+        <input type="text" id="empPass" class="emp-pass-input" maxlength="4"
+          autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" inputmode="text">
+      </div>
+      <button class="btn btn-primary" onclick="doEmpLogin()">ログイン</button>
+      <button class="btn btn-secondary" style="margin-top:8px;" onclick="backToEmpSelect()">名前を選び直す</button>
+    </div>
+
+    <!-- 管理者ログインへの切り替えリンク -->
+    <div class="admin-link-wrap" id="adminLinkWrap">
+      <button class="admin-link" onclick="toggleAdminLogin()">管理者ログイン</button>
+    </div>
+
+    <!-- 3. 管理者用ログイン（従来のID・パスワード） -->
+    <div class="login-card hidden" id="adminLoginCard" style="margin-top:14px;">
+      <div class="form-group">
+        <label class="form-label">管理者ID</label>
+        <input type="text" id="loginId" class="form-input" placeholder="例: ADMIN"
           autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false">
       </div>
       <div class="form-group">
@@ -173,6 +217,7 @@ body{font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;backgroun
           autocomplete="new-password">
       </div>
       <button class="btn btn-primary" onclick="doLogin()">ログイン</button>
+      <button class="btn btn-secondary" style="margin-top:8px;" onclick="toggleAdminLogin()">従業員ログインに戻る</button>
     </div>
   </div>
 </div>
@@ -367,19 +412,90 @@ async function sendToGAS(action, data={}) {
 
 let currentUser=null, gpsOk=false, userLat=null, userLng=null;
 let currentReqType='有給', logsCache=null, remoteApproved=false, gpsOverride=false;
+let selectedEmpId=null, selectedEmpName=null;
 
-// ===== ログイン =====
+// ===== ログイン画面：従業員一覧の読み込み =====
+async function loadEmployeeList() {
+  const result = await sendToGAS('getEmployees', {});
+  const wrap = document.getElementById('empButtonList');
+  if (!result.success || !result.employees || !result.employees.length) {
+    wrap.innerHTML = '<div class="loading">読み込みに失敗しました</div>';
+    return;
+  }
+  wrap.innerHTML = result.employees.map(e =>
+    `<button class="emp-btn" onclick="selectEmployee('${e.id}','${e.name}')">${e.name}</button>`
+  ).join('');
+}
+
+// 名前ボタンをタップ → パスワード入力画面へ
+function selectEmployee(id, name) {
+  selectedEmpId = id;
+  selectedEmpName = name;
+  document.getElementById('empPassName').textContent = name;
+  document.getElementById('empPass').value = '';
+  document.getElementById('empSelectCard').classList.add('hidden');
+  document.getElementById('empPassCard').classList.remove('hidden');
+  document.getElementById('adminLinkWrap').classList.add('hidden');
+  document.getElementById('empPass').focus();
+}
+
+// パスワード入力画面 → 名前選択画面に戻る
+function backToEmpSelect() {
+  selectedEmpId = null; selectedEmpName = null;
+  document.getElementById('empPass').value = '';
+  document.getElementById('empPassCard').classList.add('hidden');
+  document.getElementById('empSelectCard').classList.remove('hidden');
+  document.getElementById('adminLinkWrap').classList.remove('hidden');
+}
+
+// 従業員ログイン（名前＋パスワード）
+async function doEmpLogin() {
+  const pass = document.getElementById('empPass').value.trim().toUpperCase();
+  if (!pass) { showToast('パスワードを入力してください','error'); return; }
+  await performLogin(selectedEmpId, pass);
+}
+
+// 管理者ログイン画面の表示切り替え
+function toggleAdminLogin() {
+  const adminCard = document.getElementById('adminLoginCard');
+  const empSelect = document.getElementById('empSelectCard');
+  const empPass   = document.getElementById('empPassCard');
+  const linkWrap  = document.getElementById('adminLinkWrap');
+
+  if (adminCard.classList.contains('hidden')) {
+    // 管理者ログインを表示
+    adminCard.classList.remove('hidden');
+    empSelect.classList.add('hidden');
+    empPass.classList.add('hidden');
+    linkWrap.classList.add('hidden');
+  } else {
+    // 従業員ログインに戻る
+    adminCard.classList.add('hidden');
+    document.getElementById('loginId').value = '';
+    document.getElementById('loginPass').value = '';
+    empSelect.classList.remove('hidden');
+    linkWrap.classList.remove('hidden');
+  }
+}
+
+// ===== ログイン（管理者：ID＋パスワード） =====
 async function doLogin() {
   const id   = document.getElementById('loginId').value.trim().toUpperCase();
   const pass = document.getElementById('loginPass').value;
   if (!id||!pass) { showToast('IDとパスワードを入力してください','error'); return; }
+  await performLogin(id, pass);
+}
+
+// ===== 共通ログイン処理 =====
+async function performLogin(id, pass) {
   showToast('ログイン中...','success');
   const result = await sendToGAS('login',{userId:id,password:pass});
-  if (!result.success) { showToast(result.message||'IDまたはパスワードが違います','error'); return; }
+  if (!result.success) { showToast(result.message||'パスワードが違います','error'); return; }
 
   currentUser = result.user;
   document.getElementById('loginId').value  = '';
   document.getElementById('loginPass').value = '';
+  document.getElementById('empPass').value = '';
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('mainApp').style.display     = 'block';
   document.getElementById('headerUser').textContent    = currentUser.name;
@@ -418,6 +534,12 @@ function doLogout() {
   document.getElementById('tab-admin').style.display   = 'none';
   document.getElementById('btnRemote').style.display   = '';
   switchTab('stamp');
+
+  // ログイン画面を従業員選択状態に戻す
+  document.getElementById('adminLoginCard').classList.add('hidden');
+  document.getElementById('empPassCard').classList.add('hidden');
+  document.getElementById('empSelectCard').classList.remove('hidden');
+  document.getElementById('adminLinkWrap').classList.remove('hidden');
 }
 
 // ===== 時計 =====
@@ -828,6 +950,9 @@ function showToast(msg,type='') {
   t.textContent=msg; t.className=`toast ${type} show`;
   if (type!=='') setTimeout(()=>t.className='toast',3000);
 }
+
+// ===== 初期化：従業員名一覧を読み込む =====
+loadEmployeeList();
 </script>
 </body>
 </html>
