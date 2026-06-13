@@ -35,6 +35,8 @@ body{font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;backgroun
 .pass-input-wrap{position:relative;}
 .pass-input-wrap .emp-pass-input{padding-right:64px;}
 .pass-toggle{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:var(--cream);border:1px solid var(--border);border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;padding:6px 10px;line-height:1;color:var(--muted);}
+.emp-pass-input::-ms-reveal,.emp-pass-input::-ms-clear{display:none;}
+.emp-pass-input::-webkit-credentials-auto-fill-button,.emp-pass-input::-webkit-strong-password-auto-fill-button{visibility:hidden;pointer-events:none;position:absolute;right:0;}
 
 /* 管理者ログイン切り替えリンク */
 .admin-link-wrap{margin-top:18px;text-align:center;}
@@ -439,6 +441,8 @@ function selectEmployee(id, name) {
   selectedEmpName = name;
   document.getElementById('empPassName').textContent = name;
   document.getElementById('empPass').value = '';
+  document.getElementById('empPass').type = 'password';
+  document.getElementById('passToggleBtn').textContent = '表示';
   document.getElementById('empSelectCard').classList.add('hidden');
   document.getElementById('empPassCard').classList.remove('hidden');
   document.getElementById('adminLinkWrap').classList.add('hidden');
@@ -449,6 +453,8 @@ function selectEmployee(id, name) {
 function backToEmpSelect() {
   selectedEmpId = null; selectedEmpName = null;
   document.getElementById('empPass').value = '';
+  document.getElementById('empPass').type = 'password';
+  document.getElementById('passToggleBtn').textContent = '表示';
   document.getElementById('empPassCard').classList.add('hidden');
   document.getElementById('empSelectCard').classList.remove('hidden');
   document.getElementById('adminLinkWrap').classList.remove('hidden');
