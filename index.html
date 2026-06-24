@@ -92,6 +92,12 @@ body{font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;backgroun
 .stamp-btn .btn-icon{font-size:28px;}
 .btn-checkin{background:var(--mahogany);color:var(--parchment);}
 .btn-checkout{background:var(--leather);color:var(--parchment);}
+/* 電車通勤ボタン */
+.train-btn-wrap{margin-top:12px;}
+.btn-train{width:100%;padding:14px;border:none;border-radius:var(--radius);font-size:15px;font-weight:700;cursor:pointer;background:#1565C0;color:#FFFFFF;display:flex;align-items:center;justify-content:center;gap:8px;transition:transform 0.15s,opacity 0.15s;}
+.btn-train:active{transform:scale(0.97);}
+.btn-train:disabled{opacity:0.4;cursor:not-allowed;transform:none;background:var(--muted);}
+.btn-train.done{background:#2E7D32;}
 
 /* 申請ボタン */
 .req-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
@@ -272,6 +278,12 @@ body{font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;backgroun
           <span class="btn-icon">🚪</span>退勤
         </button>
       </div>
+      <!-- 電車通勤ボタン（定期以外の通勤タイプのみ表示） -->
+      <div class="train-btn-wrap" id="trainBtnWrap" style="display:none;">
+        <button class="btn-train" id="btnTrain" onclick="stampTrain()">
+          🚃 電車通勤
+        </button>
+      </div>
     </div>
     <div class="card">
       <div class="card-label">本日の打刻</div>
@@ -425,6 +437,7 @@ async function sendToGAS(action, data={}) {
 let currentUser=null, gpsOk=false, userLat=null, userLng=null;
 let currentReqType='有給', logsCache=null, remoteApproved=false, gpsOverride=false;
 let selectedEmpId=null, selectedEmpName=null;
+let trainToday=false; // 今日すでに電車通勤打刻済みか
 
 // ===== ログイン画面：従業員一覧の読み込み =====
 async function loadEmployeeList() {
@@ -545,11 +558,18 @@ async function performLogin(id, pass) {
     checkGPS(); // loadLogs完了後にGPS確認（解除状態を反映するため）
     renderHistory();
     renderRequests();
+    // 電車通勤ボタンの表示判定（定期・空白以外は表示）
+    const commType = currentUser.commType || '';
+    if (commType && commType !== '定期') {
+      document.getElementById('trainBtnWrap').style.display = '';
+      updateTrainButton();
+    }
   }
 }
 
 function doLogout() {
-  currentUser=null; gpsOk=false; logsCache=null;
+  currentUser=null; gpsOk=false; logsCache=null; trainToday=false;
+  document.getElementById('trainBtnWrap').style.display='none';
   document.getElementById('mainApp').style.display    = 'none';
   document.getElementById('loginScreen').style.display = '';
   document.getElementById('tab-stamp').style.display   = '';
@@ -679,6 +699,36 @@ async function stamp(type) {
   renderHistory();
 }
 
+// ===== 電車通勤打刻 =====
+async function stampTrain() {
+  const btn = document.getElementById('btnTrain');
+  if (btn.disabled) return;
+  btn.disabled = true;
+  showToast('電車通勤を記録中...','success');
+  const result = await sendToGAS('trainStamp',{userId:currentUser.id,userName:currentUser.name});
+  if (!result.success) { showToast('記録に失敗しました','error'); btn.disabled=false; return; }
+  trainToday = true;
+  updateTrainButton();
+  showToast('電車通勤を記録しました','success');
+  await loadLogs();
+  renderTodayLog();
+}
+
+// 電車ボタンの状態を更新
+function updateTrainButton() {
+  const btn = document.getElementById('btnTrain');
+  if (!btn) return;
+  if (trainToday) {
+    btn.className = 'btn-train done';
+    btn.innerHTML = '✅ 電車通勤済み';
+    btn.disabled = true;
+  } else {
+    btn.className = 'btn-train';
+    btn.innerHTML = '🚃 電車通勤';
+    btn.disabled = false;
+  }
+}
+
 // ===== ログ取得 =====
 async function loadLogs() {
   const result=await sendToGAS('getLogs',{userId:currentUser.id,userName:currentUser.name});
@@ -686,7 +736,11 @@ async function loadLogs() {
     logsCache=result;
     remoteApproved=result.remoteApproved||false;
     gpsOverride=result.gpsOverride||false;
+    trainToday=result.trainToday||false;
     document.getElementById('alertMissing').style.display=result.hasMissingStamp?'block':'none';
+    // 電車ボタン状態を更新
+    const commType = currentUser ? (currentUser.commType || '') : '';
+    if (commType && commType !== '定期') updateTrainButton();
   }
 }
 
@@ -711,12 +765,14 @@ function renderTodayLog() {
 function renderHistory() {
   const el=document.getElementById('historyList');
   if (!logsCache||!logsCache.stamps.length) { el.innerHTML='<div class="loading">履歴がありません</div>'; return; }
+  const commType = currentUser ? (currentUser.commType || '') : '';
+  const showTrain = commType && commType !== '定期';
   el.innerHTML=`<table class="data-table"><thead><tr>
-    <th>日付</th><th>曜</th><th>出勤</th><th>退勤</th><th>勤務</th><th>残業</th><th>有給</th>
+    <th>日付</th><th>曜</th><th>出勤</th><th>退勤</th><th>勤務</th><th>残業</th><th>有給</th>${showTrain?'<th>電車</th>':''}
   </tr></thead><tbody>${logsCache.stamps.map(s=>`<tr>
     <td>${s.date}</td><td>${s.day||''}</td><td>${s.checkIn||'-'}</td><td>${s.checkOut||'-'}</td>
     <td>${s.workHours||'-'}</td><td>${s.overHours||'-'}</td>
-    <td style="color:var(--chestnut);font-weight:700;">${s.paidLeave||''}</td>
+    <td style="color:var(--chestnut);font-weight:700;">${s.paidLeave||''}</td>${showTrain?`<td style="color:#1565C0;font-weight:700;">${s.train||''}</td>`:''}
   </tr>`).join('')}</tbody></table>`;
 
   if (logsCache.leaveInfo) {
