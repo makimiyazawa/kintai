@@ -912,6 +912,8 @@ async function toggleGps(userId,userName,override) {
   if (!result.success) { showToast('処理に失敗しました','error'); return; }
   showToast(override?`${userName}のGPS制限を解除しました`:`${userName}のGPS制限を元に戻しました`,'success');
   await renderAdmin();
+  // ボタン表示を確実に更新するため少し待ってから再描画
+  setTimeout(()=>renderAdmin(), 800);
 }
 
 // ===== 打刻修正モーダル =====
