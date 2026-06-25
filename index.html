@@ -158,6 +158,7 @@ body{font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;backgroun
 .approve-btn{padding:5px 12px;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;margin-right:4px;}
 .btn-approve{background:#F0F7E8;color:var(--olive);border:1px solid var(--olive);}
 .btn-reject{background:#FBF0EE;color:var(--leather);border:1px solid var(--leather);}
+.btn-delete{background:#FBF0EE;color:var(--leather);border:1px solid var(--leather);padding:3px 8px;border:none;border-radius:4px;font-size:11px;font-weight:700;cursor:pointer;}
 
 /* 打刻漏れバッジ */
 .missing-badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;background:#FBF0EE;color:var(--leather);border:0.5px solid var(--leather);margin-left:4px;}
@@ -845,8 +846,13 @@ async function renderAdmin() {
 
     document.getElementById('allRequests').innerHTML=history.length
       ? history.map(r=>`<div class="list-item">
-          <div class="list-row"><div class="list-title">${r.userName}（${r.reqType}申請）</div>
-            <span class="badge badge-${sm[r.status]||'pending'}">${r.status}</span></div>
+          <div class="list-row">
+            <div class="list-title">${r.userName}（${r.reqType}申請）</div>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span class="badge badge-${sm[r.status]||'pending'}">${r.status}</span>
+              <button class="btn-delete" onclick="deleteReq('${r.reqId}')">🗑️</button>
+            </div>
+          </div>
           <div class="list-sub">${r.from} 〜 ${r.to}${r.note?' / '+r.note:''}</div>
         </div>`).join('')
       : '<div class="loading">履歴がありません</div>';
@@ -882,6 +888,15 @@ async function renderAdmin() {
         </div>`).join('')
       : '<div class="loading">打刻漏れはありません</div>';
   }
+}
+
+async function deleteReq(reqId) {
+  if (!confirm('この申請を削除しますか？')) return;
+  showToast('削除中...','success');
+  const result = await sendToGAS('deleteRequest',{reqId});
+  if (!result.success) { showToast(result.message||'削除に失敗しました','error'); return; }
+  showToast('削除しました','success');
+  await renderAdmin();
 }
 
 async function approveReq(reqId,approved) {
