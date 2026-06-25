@@ -972,37 +972,19 @@ async function loadMonthlySummary() {
     <div style="overflow-x:auto;">
     <table class="summary-table">
       <thead><tr>
-        <th>名前</th><th>区分</th><th>出勤日数</th><th>総勤務</th><th>残業</th><th>有給</th>
-        <th>交通費</th><th>役職手当</th><th>その他手当</th><th>操作</th>
+        <th>名前</th><th>区分</th><th>出勤日数</th><th>総勤務</th><th>残業</th><th>有給</th><th>電車通勤</th>
       </tr></thead>
-      <tbody>${rows.map(r=>`<tr data-userid="${r.userId}" data-username="${r.userName}">
+      <tbody>${rows.map(r=>`<tr>
         <td>${r.userName}</td>
         <td>${rl[r.role]||r.role}</td>
         <td style="text-align:center;">${r.workDays}</td>
         <td>${r.totalWork}</td>
         <td>${r.totalOver}</td>
         <td style="text-align:center;">${r.paidDays}</td>
-        <td><input type="number" value="${r.transport}"  class="allow-input" data-field="transport"  style="width:70px;"></td>
-        <td><input type="number" value="${r.posAllow}"   class="allow-input" data-field="posAllow"   style="width:70px;"></td>
-        <td><input type="number" value="${r.otherAllow}" class="allow-input" data-field="otherAllow" style="width:70px;"></td>
-        <td><button class="approve-btn btn-approve" onclick="saveAllowance(this)">保存</button></td>
+        <td style="text-align:center;">${r.trainDays||0}</td>
       </tr>`).join('')}
       </tbody>
     </table></div>`;
-}
-
-async function saveAllowance(btn) {
-  const row=btn.closest('tr');
-  const userId=row.dataset.userid;
-  const userName=row.dataset.username;
-  const inputs=row.querySelectorAll('.allow-input');
-  const transport  = Number(inputs[0].value);
-  const posAllow   = Number(inputs[1].value);
-  const otherAllow = Number(inputs[2].value);
-  showToast('保存中...','success');
-  const result=await sendToGAS('updateAllowance',{userId,userName,transport,posAllow,otherAllow,note:''});
-  if (!result.success) { showToast('保存に失敗しました','error'); return; }
-  showToast('保存しました','success');
 }
 
 async function exportMonthly() {
