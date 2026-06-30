@@ -845,16 +845,24 @@ async function renderAdmin() {
       : '<div class="loading">承認待ちの申請はありません</div>';
 
     document.getElementById('allRequests').innerHTML=history.length
-      ? history.map(r=>`<div class="list-item">
+      ? history.map(r=>{
+          // リモート申請・承認済み・開始日が今日以降・未対応のみ「未対応」バッジを表示
+          const today = new Date(); today.setHours(0,0,0,0);
+          const fromDate = new Date(r.from.replaceAll('/','-'));
+          const needsAction = r.reqType==='リモート' && r.status==='承認済み' && fromDate>=today && !r.handled;
+          return `<div class="list-item">
           <div class="list-row">
             <div class="list-title">${r.userName}（${r.reqType}申請）</div>
             <div style="display:flex;align-items:center;gap:6px;">
+              ${needsAction?'<span class="badge" style="background:#FFF3CD;color:#8B6914;border:0.5px solid #D4A843;">⚠️ 未対応</span>':''}
               <span class="badge badge-${sm[r.status]||'pending'}">${r.status}</span>
               <button class="btn-delete" onclick="deleteReq('${r.reqId}')">🗑️</button>
             </div>
           </div>
           <div class="list-sub">${r.from} 〜 ${r.to}${r.note?' / '+r.note:''}</div>
-        </div>`).join('')
+          ${needsAction?`<div style="margin-top:8px;"><button class="approve-btn btn-approve" onclick="markHandled('${r.reqId}')">✅ 対応済みにする</button></div>`:''}
+        </div>`;
+        }).join('')
       : '<div class="loading">履歴がありません</div>';
   }
 
@@ -888,6 +896,14 @@ async function renderAdmin() {
         </div>`).join('')
       : '<div class="loading">打刻漏れはありません</div>';
   }
+}
+
+async function markHandled(reqId) {
+  showToast('対応済みにしています...','success');
+  const result = await sendToGAS('markHandled',{reqId});
+  if (!result.success) { showToast(result.message||'処理に失敗しました','error'); return; }
+  showToast('対応済みにしました','success');
+  await renderAdmin();
 }
 
 async function deleteReq(reqId) {
