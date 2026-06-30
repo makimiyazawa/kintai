@@ -632,7 +632,7 @@ function checkGPS() {
     // リモート承認済みの場合は自宅拠点も有効
     locations.forEach((loc,idx)=>{
       if (!loc.lat||!loc.radius) return;
-      if (idx===1 && !remoteApproved) return; // 拠点2はリモート承認時のみ
+      if (idx>=1 && !remoteApproved) return; // 拠点2・拠点3はリモート承認時のみ
       const d=getDistance(userLat,userLng,loc.lat,loc.lng);
       if (d<minDist) minDist=d;
       if (d<=loc.radius) inRange=true;
