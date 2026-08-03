@@ -364,6 +364,7 @@ body{font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;backgroun
         <button class="btn btn-primary btn-sm" onclick="exportMonthly()">📥 Excel出力</button>
       </div>
       <button class="btn btn-secondary" style="margin-bottom:12px;" onclick="createNextMonth()">📅 翌月シートを全員分作成</button>
+      <button class="btn btn-secondary" style="margin-bottom:12px;" onclick="recalcSummary()">🔄 サマリを再計算（手修正後に使用）</button>
       <div style="overflow-x:auto;" id="monthlySummary"><div class="loading">月を選択してください</div></div>
     </div>
   </div>
@@ -1023,6 +1024,17 @@ async function createNextMonth() {
   const result = await sendToGAS('createNextMonth', {});
   if (!result.success) { showToast('作成に失敗しました','error'); return; }
   showToast(result.message,'success');
+}
+
+// ===== 月次サマリ再計算（スプレッドシートで手修正した後に使用）=====
+async function recalcSummary() {
+  const ym = document.getElementById('summaryYm').value;
+  if (!confirm(`${ym}のサマリを再計算しますか？\n（スプレッドシートで直接修正した内容を反映します）`)) return;
+  showToast('再計算中...','success');
+  const result = await sendToGAS('recalcSummary', {ym});
+  if (!result.success) { showToast(result.message||'再計算に失敗しました','error'); return; }
+  showToast(result.message,'success');
+  loadMonthlySummary(); // 画面を再読み込みして最新の数字を表示
 }
 
 // ===== タブ切り替え =====
