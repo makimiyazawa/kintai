@@ -365,6 +365,9 @@ body{font-family:'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;backgroun
       </div>
       <button class="btn btn-secondary" style="margin-bottom:12px;" onclick="createNextMonth()">📅 翌月シートを全員分作成</button>
       <button class="btn btn-secondary" style="margin-bottom:12px;" onclick="recalcSummary()">🔄 サマリを再計算（手修正後に使用）</button>
+      <button class="btn btn-secondary" style="margin-bottom:12px;" onclick="fillDates()">📆 選択中の月の全日付をそろえる</button>
+      <button class="btn btn-secondary" style="margin-bottom:12px;" onclick="showPaidLeave()">🌴 選択中の月の有給取得日数を表示</button>
+      <div id="paidLeaveResult"></div>
       <div style="overflow-x:auto;" id="monthlySummary"><div class="loading">月を選択してください</div></div>
     </div>
   </div>
@@ -1035,6 +1038,43 @@ async function recalcSummary() {
   if (!result.success) { showToast(result.message||'再計算に失敗しました','error'); return; }
   showToast(result.message,'success');
   loadMonthlySummary(); // 画面を再読み込みして最新の数字を表示
+}
+
+// ===== 選択中の月の全日付をそろえる =====
+async function fillDates() {
+  const ym = document.getElementById('summaryYm').value;
+  if (!confirm(`${ym}の全日付（土日祝含む）を全員分そろえますか？\n（既存の打刻データは消えません。足りない日付だけ追加します）`)) return;
+  showToast('全日付をそろえています...','success');
+  const result = await sendToGAS('fillMonthDates', {ym});
+  if (!result.success) { showToast(result.message||'処理に失敗しました','error'); return; }
+  showToast(result.message,'success');
+}
+
+// ===== 選択中の月の有給取得日数を表示 =====
+async function showPaidLeave() {
+  const ym = document.getElementById('summaryYm').value;
+  const el = document.getElementById('paidLeaveResult');
+  el.innerHTML = '<div class="loading">集計中...</div>';
+  const result = await sendToGAS('getPaidLeaveByMonth', {ym});
+  if (!result.success) { el.innerHTML = '<div class="loading">集計に失敗しました</div>'; return; }
+
+  const list = result.list || [];
+  // 有給を取得した人だけ抽出（0日の人は省く）
+  const taken = list.filter(p => p.paidDays > 0);
+  if (!taken.length) {
+    el.innerHTML = `<div class="alert-box">${ym}に有給を取得した人はいません</div>`;
+    return;
+  }
+  el.innerHTML = `
+    <div style="margin-top:10px;font-size:12px;font-weight:700;color:var(--muted);">${ym}の有給取得日数</div>
+    <table class="data-table" style="margin-top:6px;">
+      <thead><tr><th>名前</th><th>取得日数</th><th>取得日</th></tr></thead>
+      <tbody>${taken.map(p=>`<tr>
+        <td>${p.userName}</td>
+        <td style="text-align:center;color:var(--chestnut);font-weight:700;">${p.paidDays}日</td>
+        <td style="font-size:11px;">${p.paidDates.join('、')}</td>
+      </tr>`).join('')}</tbody>
+    </table>`;
 }
 
 // ===== タブ切り替え =====
